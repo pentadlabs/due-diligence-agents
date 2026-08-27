@@ -62,7 +62,9 @@ class BaseAgentRunner(ABC):
     """
 
     # Configurable defaults -- subclasses may override via class attributes.
-    timeout_seconds: int = 600
+    # PEN-5630 (pentadlabs fork): 1800, was 600. A single-stream local backend
+    # (~35 tok/s) cannot finish a specialist session in 10 minutes.
+    timeout_seconds: int = 1800
     max_turns: int = 200
     max_budget_usd: float = 5.0
 
