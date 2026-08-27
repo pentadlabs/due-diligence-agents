@@ -2327,8 +2327,11 @@ class PipelineEngine:
             batch_prompts.append(prompt)
 
         # Adaptive timeout: 5 min per subject, 10 min floor, 30 min cap.
+        # PEN-5630 (pentadlabs fork): tripled — a single-stream local backend
+        # (~35 tok/s) cannot finish a specialist session inside the hosted-API
+        # sized 600s floor.
         respawn_timeout_s = min(
-            max(len(missing_subjects) * 300, 600),
+            max(len(missing_subjects) * 900, 1800),
             1800,
         )
         logger.info(

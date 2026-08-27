@@ -33,15 +33,20 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_AGENT_TIMEOUT_S: int = 30 * 60  # 30 minutes per agent
 DEFAULT_LIVENESS_INTERVAL_S: int = 5 * 60  # check every 5 minutes
-DEFAULT_STALL_THRESHOLD_S: int = 10 * 60  # 10 minutes with no output
+# PEN-5630 (pentadlabs fork): stall thresholds tripled. Parallel specialists
+# queue their ~30k-token prefills through one single-stream local GPU
+# (~35 tok/s); most wait longer than the hosted-API sized 10-minute stall
+# window for their FIRST token, so the old thresholds cancelled healthy
+# sessions.
+DEFAULT_STALL_THRESHOLD_S: int = 30 * 60  # 30 minutes with no output
 
 # Adaptive timeout parameters (Issue #42)
 BASE_TIMEOUT_S: int = 1800  # 30 minutes base
 PER_SUBJECT_TIMEOUT_S: int = 120  # 2 minutes per subject
-MAX_TIMEOUT_S: int = 60 * 60  # 60 minutes hard cap
+MAX_TIMEOUT_S: int = 2 * 60 * 60  # 2 hour hard cap (was 60 min)
 WARN_NO_OUTPUT_S: int = 5 * 60  # 5 minutes -- log WARNING
-STALL_NO_OUTPUT_S: int = 10 * 60  # 10 minutes -- consider stalled
-STALL_CANCEL_S: int = 15 * 60  # 15 minutes -- cancel stalled tasks
+STALL_NO_OUTPUT_S: int = 30 * 60  # 30 minutes -- consider stalled
+STALL_CANCEL_S: int = 45 * 60  # 45 minutes -- cancel stalled tasks
 
 
 # ---------------------------------------------------------------------------
