@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from dd_agents.chat.context import ChatContextBuilder
 from dd_agents.chat.history import ConversationHistory, MessageRole
-from dd_agents.chat.memory import ChatMemoryStore, SessionMetadata, generate_session_id
+from dd_agents.chat.memory import SessionMetadata, create_memory_store, generate_session_id
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +206,7 @@ class ChatEngine:
 
         # Memory store
         chat_dir = project_dir / "_dd" / "forensic-dd" / "chat"
-        self._memory_store = ChatMemoryStore(chat_dir)
+        self._memory_store = create_memory_store(chat_dir)
         self._memory_store.ensure_dirs()
 
         # Correction store (chat-to-pipeline feedback)

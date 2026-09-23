@@ -283,3 +283,15 @@ def generate_session_id() -> str:
     """Generate a session ID from the current timestamp."""
     now = datetime.now(tz=UTC)
     return f"chat_{now.strftime('%Y%m%d_%H%M%S')}"
+
+
+def create_memory_store(chat_dir: Path) -> ChatMemoryStore:
+    """Select application storage explicitly; a missing backend never falls back."""
+    backend = os.environ.get("DD_CHAT_MEMORY_BACKEND", "file")
+    if backend == "file":
+        return ChatMemoryStore(chat_dir)
+    if backend == "wunderblock":
+        from dd_agents.chat.wunderblock_memory import WunderblockChatMemoryStore
+
+        return WunderblockChatMemoryStore(chat_dir)
+    raise ValueError(f"Unknown DD_CHAT_MEMORY_BACKEND: {backend}")
