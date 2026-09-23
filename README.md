@@ -132,6 +132,15 @@ dd-agents health --data-room ./data_room                    # Check knowledge ba
 dd-agents annotate --data-room ./data_room "Confirmed with counsel"  # Add analyst notes
 ```
 
+Chat memory uses local files by default. In an admitted Wunderblock image, set
+`DD_CHAT_MEMORY_BACKEND=wunderblock` to keep memories, session transcripts, and
+session metadata in the active WorkItem. The image must provide
+`wb_framework_memory`; a missing bridge or refused operation is an error.
+The host selects the WorkItem scope. The chat directory cannot change it.
+
+This setting changes application storage. Claude Agent SDK session history is
+handled separately by the image's SDK shim.
+
 > **Serve a finished report over the network.**
 > [`examples/agno-bindu/`](examples/agno-bindu/) exposes a completed report as a
 > conversational [Bindu](https://github.com/GetBindu/Bindu) A2A agent — ask it for
