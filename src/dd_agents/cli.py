@@ -332,8 +332,13 @@ def run(
         errors = len(state.errors)
         total_cost = sum(state.agent_costs.values())
 
+        completion = (
+            "[bold red]Pipeline completed with critical DoD failures[/bold red]"
+            if state.exit_code
+            else "[bold green]Pipeline completed[/bold green]"
+        )
         summary_parts = [
-            "[bold green]Pipeline completed[/bold green]",
+            completion,
             f"Run ID: {state.run_id}",
             f"Steps completed: {completed}/35",
         ]
@@ -370,7 +375,7 @@ def run(
             Panel(
                 "\n".join(summary_parts),
                 title="Complete",
-                border_style="green",
+                border_style="red" if state.exit_code else "green",
             )
         )
         close_pipeline_logging()
@@ -381,7 +386,7 @@ def run(
         _terminate_child_processes()
         import os as _os
 
-        _os._exit(0)
+        _os._exit(state.exit_code)
 
     except BlockingGateError as exc:
         console.print()
