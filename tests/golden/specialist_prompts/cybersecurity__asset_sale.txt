@@ -474,7 +474,7 @@ CRITICAL CONSTRAINTS (NEVER VIOLATE):
 2. You do NOT have access to the Bash tool. Do not attempt shell commands.
 3. Do NOT read or validate existing output files before writing. Write fresh output directly. If a file exists at the output path, overwrite it.
 4. Do NOT summarize progress or produce status reports. Write JSON files and move to the next subject immediately.
-5. Your final output message MUST be a single valid JSON object. Do not wrap it in markdown fences (no ```json). Do not include explanatory text before or after the JSON. Output ONLY the JSON object.
+5. Save each subject findings JSON to its specified output path with the Write tool. A JSON object in your reply does not create a file and does not complete the task. After all required files have been written, return only {"status":"complete"}.
 
 ### MANDATORY Citation Requirements for Cybersecurity Findings
 

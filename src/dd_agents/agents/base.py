@@ -394,7 +394,8 @@ class BaseAgentRunner(ABC):
         # anti-fabrication + untrusted-document rule) is appended LAST and is
         # non-removable: it is concatenated here in the runner, not an
         # overridable method, so no agent or config layer can opt out.
-        system_prompt = f"{base_system}\n\n{assemble_safety_floor(self.get_agent_type())}"
+        safety_floor = assemble_safety_floor(self.get_agent_type(), writes_findings=expected_subjects > 0)
+        system_prompt = f"{base_system}\n\n{safety_floor}"
 
         # Build hooks and MCP server for the agent
         from dd_agents.hooks.factory import build_hooks_for_agent

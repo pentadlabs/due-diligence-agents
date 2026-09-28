@@ -219,7 +219,7 @@ class PromptBuilder:
     # 2.3.0: Finance specialist prompt — added Financial Model Integrity guidance
     # (formula-audit findings: hardcoded overrides, circular refs, broken links)
     # paired with the read_office formula-integrity section (Issue #194).
-    PROMPT_VERSION: str = "2.3.0"
+    PROMPT_VERSION: str = "2.3.1"
 
     def __init__(
         self,
@@ -566,7 +566,7 @@ class PromptBuilder:
         # Non-removable safety floor — TRUE last layer (audit AD-2 / §7.1).
         from dd_agents.agents.prompt_constants import assemble_safety_floor
 
-        prompt = f"{prompt}\n\n---\n\n{assemble_safety_floor(agent_name)}"
+        prompt = f"{prompt}\n\n---\n\n{assemble_safety_floor(agent_name, writes_findings=True)}"
 
         return prompt
 

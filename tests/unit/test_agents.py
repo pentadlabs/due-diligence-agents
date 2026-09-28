@@ -1134,12 +1134,14 @@ class TestSpawnAgentSDKWiring:
         assert result == ""
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("expected_subjects", [0, 2])
     async def test_spawn_agent_returns_text_when_sdk_available(
         self,
         tmp_project: Path,
         tmp_run_dir: Path,
         run_id: str,
         monkeypatch: pytest.MonkeyPatch,
+        expected_subjects: int,
     ) -> None:
         """When SDK is available, _spawn_agent calls query() and returns text."""
         import dd_agents.agents.base as base_mod
@@ -1169,18 +1171,23 @@ class TestSpawnAgentSDKWiring:
         monkeypatch.setattr(base_mod, "_ResultMessage", MockResultMessage)
 
         # Need to also mock _ClaudeAgentOptions.
+        captured_options: dict[str, object] = {}
+
         class MockOptions:
             def __init__(self, **kwargs: object) -> None:
-                pass
+                captured_options.update(kwargs)
 
         import claude_agent_sdk as _cas
 
         monkeypatch.setattr(_cas, "ClaudeAgentOptions", MockOptions)
 
         agent = LegalAgent(tmp_project, tmp_run_dir, run_id)
-        result = await agent._spawn_agent("analyze contracts")
+        result = await agent._spawn_agent("analyze contracts", expected_subjects=expected_subjects)
         assert "Hello from agent" in result
         assert "part two" in result
+        system_prompt = str(captured_options["system_prompt"])
+        assert ("does not create a file" in system_prompt) == (expected_subjects > 0)
+        assert ("final output message MUST be a single valid JSON object" in system_prompt) == (expected_subjects == 0)
 
     @pytest.mark.asyncio
     async def test_spawn_agent_handles_sdk_error(

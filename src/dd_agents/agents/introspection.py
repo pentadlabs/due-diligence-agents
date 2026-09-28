@@ -99,7 +99,7 @@ def describe_agent(name: str) -> str:
         parts += ["## Domain Guidance", "", descriptor.domain_robustness, ""]
 
     # The non-removable safety floor (includes the citation mandate).
-    parts += ["## Safety Floor (always enforced)", "", assemble_safety_floor(name), ""]
+    parts += ["## Safety Floor (always enforced)", "", assemble_safety_floor(name, writes_findings=True), ""]
 
     # Point the reader at the editable source-of-truth markdown for this agent's
     # built-in persona/focus/domain guidance (the safety floor is code-enforced
