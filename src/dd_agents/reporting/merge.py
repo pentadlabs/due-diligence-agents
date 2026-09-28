@@ -31,6 +31,7 @@ from dd_agents.models.governance import GovernanceEdge, GovernanceGraph
 from dd_agents.reporting.severity_resolver import resolve_severity
 from dd_agents.utils.constants import NON_SUBJECT_STEMS, SEVERITY_ORDER, SEVERITY_P3
 from dd_agents.utils.naming import subject_safe_name as compute_safe_name
+from dd_agents.validation.domain_coverage import covered_domains
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -401,7 +402,7 @@ class FindingMerger:
                 quarantine_path,
             )
         # Check agent coverage (Issue #85).
-        coverage_gaps = self.check_agent_coverage(results)
+        coverage_gaps = self.check_agent_coverage(results, findings_dir, agents)
         if coverage_gaps:
             logger.warning(
                 "Agent coverage gaps detected: %d subjects missing agents",
@@ -465,28 +466,22 @@ class FindingMerger:
 
         - ``missing_output``: Agent never produced a JSON file for this subject.
           Indicates a pipeline failure (agent crash, batch omission).
-        - ``no_findings``: Agent produced a file but it contained zero findings
-          and zero gaps.  May be legitimate (clean subject) or indicate
-          extraction/analysis failure.
+        - ``no_findings``: Agent produced a file but it is invalid or has no surviving
+          merged contribution. A valid empty review counts as covered.
 
         Returns a list of coverage gaps::
 
             [{"subject": str,
-              "missing_agents": [str],       # no content at all
+              "missing_agents": [str],       # no valid review coverage
               "missing_output": [str],       # no JSON file on disk
-              "no_findings": [str]}]         # file exists, empty content
+              "no_findings": [str]}]         # invalid or unrepresented output
         """
         from dd_agents.agents.registry import AgentRegistry
 
         expected_agents = set(active_agents if active_agents is not None else AgentRegistry.all_specialist_names())
         gaps: list[dict[str, Any]] = []
         for csn, mco in merged.items():
-            actual_agents: set[str] = set()
-            for f in mco.findings:
-                actual_agents.add(f.agent.value if hasattr(f.agent, "value") else str(f.agent))
-            for g in mco.gaps:
-                if g.agent:
-                    actual_agents.add(g.agent.value if hasattr(g.agent, "value") else str(g.agent))
+            actual_agents = covered_domains(mco.model_dump(mode="json"), csn, expected_agents, findings_dir)
             missing = expected_agents - actual_agents
             if missing:
                 missing_output: list[str] = []
@@ -519,7 +514,7 @@ class FindingMerger:
                     )
                 if no_findings:
                     logger.info(
-                        "Subject %s has empty agent output (no findings/gaps): %s",
+                        "Subject %s has invalid or unrepresented agent output: %s",
                         csn,
                         no_findings,
                     )

@@ -45,6 +45,7 @@ def _make_subject_json(subject: str, agent: str) -> dict:
         "run_id": "run_001",
         "timestamp": "2025-02-18T00:00:00Z",
         "files_analyzed": 1,
+        "file_headers": [],
         "findings": [
             {
                 "id": f"forensic-dd_{agent}_{subject}_0001",
@@ -3380,6 +3381,10 @@ class TestDoDCheck12bAgentCoverage:
         }
         merged_dir.mkdir(parents=True, exist_ok=True)
         (merged_dir / f"{subject}.json").write_text(json.dumps(data))
+        for agent in agents:
+            raw = merged_dir.parent / agent / f"{subject}.json"
+            raw.parent.mkdir(parents=True, exist_ok=True)
+            raw.write_text(json.dumps(_make_subject_json(subject, agent)))
 
     def test_full_coverage_passes(self, tmp_path: Path) -> None:
         run_dir = tmp_path / "run"
