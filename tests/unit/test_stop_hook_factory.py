@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -44,8 +45,17 @@ async def test_missing_manifest_blocks_stop_with_model_feedback(tmp_path: Path) 
 async def test_completed_findings_allow_stop_without_a_manifest(tmp_path: Path) -> None:
     output = tmp_path / "findings" / "legal"
     output.mkdir(parents=True)
-    (output / "subject_a.json").write_text("{}")
-    (output / "subject_b.json").write_text("{}")
+    for name in ("subject_a", "subject_b"):
+        (output / f"{name}.json").write_text(
+            json.dumps(
+                {
+                    "subject": name,
+                    "subject_safe_name": name,
+                    "findings": [],
+                    "file_headers": [],
+                }
+            )
+        )
     hook = _build_stop_hook("legal", tmp_path, expected_subjects=2)
 
     result = await hook({"hook_event_name": "Stop", "stop_hook_active": True}, None, {})

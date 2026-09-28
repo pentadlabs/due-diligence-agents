@@ -314,22 +314,18 @@ def finding_schema_guard(
         return {"decision": "allow", "reason": ""}
 
     content = tool_input.get("content", "")
-    if not content:
-        return {"decision": "allow", "reason": ""}
-
-    # Parse JSON — if it fails, let the write proceed (other guards handle this).
     try:
         data = json.loads(content)
-    except (json.JSONDecodeError, TypeError):
-        return {"decision": "allow", "reason": ""}
+    except (json.JSONDecodeError, TypeError) as exc:
+        return {"decision": "block", "reason": f"Invalid JSON in {fp.name}: {exc}. Fix the content before writing."}
 
     if not isinstance(data, dict):
-        return {"decision": "allow", "reason": ""}
+        return {"decision": "block", "reason": f"{fp.name} must contain one JSON object."}
 
     # Validate each finding in the "findings" array.
     findings = data.get("findings", [])
     if not isinstance(findings, list):
-        return {"decision": "allow", "reason": ""}
+        return {"decision": "block", "reason": f"{fp.name}: 'findings' must be an array."}
 
     violations: list[str] = []
     for idx, finding in enumerate(findings):

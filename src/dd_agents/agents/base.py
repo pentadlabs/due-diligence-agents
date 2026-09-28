@@ -266,6 +266,7 @@ class BaseAgentRunner(ABC):
                 prompt,
                 on_turn=on_turn,
                 expected_subjects=len(subjects),
+                subject_names=[str(getattr(subject, "safe_name", subject)) for subject in subjects],
             )
 
             # Persist raw output for diagnostics (always, not just on failure).
@@ -350,6 +351,7 @@ class BaseAgentRunner(ABC):
         *,
         on_turn: Any | None = None,
         expected_subjects: int = 0,
+        subject_names: list[str] | None = None,
     ) -> str:
         """Spawn the agent via ``claude_agent_sdk.query()`` and return raw text.
 
@@ -369,6 +371,8 @@ class BaseAgentRunner(ABC):
         expected_subjects:
             Number of subject JSONs the agent should produce.  Used to
             configure stop hooks.
+        subject_names:
+            Exact safe names for the completion hook to validate.
 
         Returns
         -------
@@ -406,6 +410,7 @@ class BaseAgentRunner(ABC):
             run_dir=self.run_dir,
             project_dir=self.project_dir,
             expected_subjects=expected_subjects,
+            subject_names=subject_names,
         )
 
         runtime_ctx = _build_runtime_context(
