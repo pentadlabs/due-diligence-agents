@@ -564,6 +564,11 @@ class TestDodCheck12bAssignments:
             "gaps": [],
         }
         (merged_dir / "acme_corp.json").write_text(json.dumps(merged_output))
+        for agent in ("finance", "legal"):
+            raw_dir = merged_dir.parent / agent
+            raw_dir.mkdir()
+            output = merged_output | {"agent": agent, "findings": [_make_finding()], "file_headers": []}
+            (raw_dir / "acme_corp.json").write_text(json.dumps(output))
 
         checker = DefinitionOfDoneChecker(
             run_dir=run_dir,
@@ -598,6 +603,11 @@ class TestDodCheck12bAssignments:
             "gaps": [],
         }
         (merged_dir / "acme_corp.json").write_text(json.dumps(merged_output))
+        for agent in ("finance", "legal"):
+            raw_dir = merged_dir.parent / agent
+            raw_dir.mkdir()
+            output = merged_output | {"agent": agent, "findings": [_make_finding()], "file_headers": []}
+            (raw_dir / "acme_corp.json").write_text(json.dumps(output))
 
         checker = DefinitionOfDoneChecker(
             run_dir=run_dir,
@@ -627,6 +637,11 @@ class TestDodCheck12bAssignments:
             "gaps": [],
         }
         (merged_dir / "acme_corp.json").write_text(json.dumps(merged_output))
+        for agent in ("finance", "legal"):
+            raw_dir = merged_dir.parent / agent
+            raw_dir.mkdir()
+            output = merged_output | {"agent": agent, "findings": [_make_finding()], "file_headers": []}
+            (raw_dir / "acme_corp.json").write_text(json.dumps(output))
 
         checker = DefinitionOfDoneChecker(
             run_dir=run_dir,

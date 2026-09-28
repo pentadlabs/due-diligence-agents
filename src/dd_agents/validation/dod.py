@@ -52,6 +52,7 @@ from dd_agents.utils.constants import (
     QUALITY_SCORES_JSON,
     SEVERITY_P0,
 )
+from dd_agents.validation.domain_coverage import covered_domains
 
 logger = logging.getLogger(__name__)
 
@@ -583,7 +584,7 @@ class DefinitionOfDoneChecker:
         )
 
     def check_12b_agent_coverage_in_merged(self) -> AuditCheck:
-        """Every subject in merged output has findings or gaps from all *assigned* agents."""
+        """Every subject has a valid review from all assigned agents."""
         merged_dir = self.run_dir / "findings" / "merged"
         if not merged_dir.exists():
             return AuditCheck(
@@ -606,22 +607,19 @@ class DefinitionOfDoneChecker:
         default_agents = set(self._active_agents)
         missing_coverage: list[str] = []
 
-        for jf in sorted(merged_dir.glob("*.json")):
+        for subject in self.subject_safe_names:
+            jf = merged_dir / f"{subject}.json"
             try:
                 data = json.loads(jf.read_text(encoding="utf-8"))
             except (ValueError, OSError):
-                continue
-            # Use the actual assignment for this subject, or all specialists as fallback
-            expected_agents = set(subject_assignments.get(jf.stem, default_agents))
-            actual_agents: set[str] = set()
-            for f in data.get("findings", []):
-                agent = f.get("agent", "")
-                if agent:
-                    actual_agents.add(agent)
-            for g in data.get("gaps", []):
-                agent = g.get("agent", "")
-                if agent:
-                    actual_agents.add(agent)
+                data = {}
+            expected_agents = set(subject_assignments.get(subject, default_agents))
+            actual_agents = covered_domains(
+                data if isinstance(data, dict) else {},
+                subject,
+                expected_agents,
+                merged_dir.parent,
+            )
             missing = expected_agents - actual_agents
             if missing:
                 missing_coverage.append(f"{jf.stem}: missing {sorted(missing)}")

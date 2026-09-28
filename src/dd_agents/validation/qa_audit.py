@@ -25,6 +25,7 @@ from dd_agents.utils.constants import (
     _sev_count_init,
 )
 from dd_agents.validation._finding_filters import is_tamper_finding as _is_tamper_finding
+from dd_agents.validation.domain_coverage import covered_domains
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -635,49 +636,21 @@ class QAAuditor:
         category_warnings: list[str] = []
         merged_dir = self.run_dir / "findings" / "merged"
 
-        if merged_dir.exists():
-            for subject in self.subject_safe_names:
-                merged_path = merged_dir / f"{subject}.json"
-                if not merged_path.exists():
-                    subjects_missing.append(
-                        {
-                            "subject": subject,
-                            "missing_domains": sorted(enabled_domains),
-                        }
-                    )
-                    continue
-                try:
-                    data = json.loads(merged_path.read_text(encoding="utf-8"))
-                except (json.JSONDecodeError, OSError):
-                    subjects_missing.append(
-                        {
-                            "subject": subject,
-                            "missing_domains": sorted(enabled_domains),
-                        }
-                    )
-                    continue
-                findings = data.get("findings", [])
-                # Also count domain_reviewed_no_issues as agent coverage — the
-                # agent ran but found nothing actionable.
-                # Additionally, count gaps — an agent that produced only gaps
-                # (no actionable findings) still analyzed the subject.
-                covered: set[str] = set()
-                for f in findings:
-                    agent = f.get("agent")
-                    if agent:
-                        covered.add(agent)
-                for g in data.get("gaps", []):
-                    agent = g.get("agent")
-                    if agent:
-                        covered.add(agent)
-                missing = enabled_domains - covered
-                if missing:
-                    subjects_missing.append(
-                        {
-                            "subject": subject,
-                            "missing_domains": sorted(missing),
-                        }
-                    )
+        for subject in self.subject_safe_names:
+            merged_path = merged_dir / f"{subject}.json"
+            try:
+                data = json.loads(merged_path.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                data = {}
+            covered = covered_domains(
+                data if isinstance(data, dict) else {},
+                subject,
+                enabled_domains,
+                merged_dir.parent,
+            )
+            missing = enabled_domains - covered
+            if missing:
+                subjects_missing.append({"subject": subject, "missing_domains": sorted(missing)})
 
         total = max(len(self.subject_safe_names), 1)
         coverage = 1.0 - (len(subjects_missing) / total)

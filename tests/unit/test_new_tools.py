@@ -6,6 +6,7 @@ enhanced stop hooks (turn-aware guidance).
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -531,6 +532,21 @@ class TestStopHookTurnGuidance:
 # ===================================================================
 
 
+def _write_valid_review(agent_dir: Path, agent: str) -> None:
+    (agent_dir / "test_subject.json").write_text(
+        json.dumps(
+            {
+                "subject": "Test Subject",
+                "subject_safe_name": "test_subject",
+                "agent": agent,
+                "findings": [],
+                "gaps": [],
+                "file_headers": [],
+            }
+        )
+    )
+
+
 class TestMergeCoverageGapDifferentiation:
     """Tests for check_agent_coverage with findings_dir."""
 
@@ -579,7 +595,7 @@ class TestMergeCoverageGapDifferentiation:
         for agent in ["legal", "finance", "commercial"]:
             agent_dir = findings_dir / agent
             agent_dir.mkdir(parents=True)
-            (agent_dir / "test_subject.json").write_text("{}")
+            _write_valid_review(agent_dir, agent)
 
         # producttech and cybersecurity dirs don't exist at all
         merged = {"test_subject": self._make_merged(["legal", "finance", "commercial"])}
@@ -589,16 +605,19 @@ class TestMergeCoverageGapDifferentiation:
         assert gaps[0]["missing_output"] == ["cybersecurity", "producttech"]
         assert gaps[0]["no_findings"] == []
 
-    def test_no_findings_detected(self, tmp_path: Path) -> None:
+    def test_invalid_output_detected(self, tmp_path: Path) -> None:
         findings_dir = tmp_path / "findings"
         test_agents = ["legal", "finance", "commercial", "producttech", "cybersecurity"]
         # All agent dirs exist, all have the subject file
         for agent in test_agents:
             agent_dir = findings_dir / agent
             agent_dir.mkdir(parents=True)
-            (agent_dir / "test_subject.json").write_text('{"findings": [], "gaps": []}')
+            if agent in ("legal", "finance"):
+                _write_valid_review(agent_dir, agent)
+            else:
+                (agent_dir / "test_subject.json").write_text("{}")
 
-        # But only legal and finance produced actual findings in merged output
+        # Only legal and finance have valid source output
         merged = {"test_subject": self._make_merged(["legal", "finance"])}
         gaps = FindingMerger.check_agent_coverage(merged, findings_dir=findings_dir, active_agents=test_agents)
 
@@ -613,8 +632,8 @@ class TestMergeCoverageGapDifferentiation:
         for agent in ["legal", "finance"]:
             agent_dir = findings_dir / agent
             agent_dir.mkdir(parents=True)
-            (agent_dir / "test_subject.json").write_text("{}")
-        # commercial has dir and file but no findings in merged
+            _write_valid_review(agent_dir, agent)
+        # commercial has a file, but its content is invalid
         comm_dir = findings_dir / "commercial"
         comm_dir.mkdir(parents=True)
         (comm_dir / "test_subject.json").write_text("{}")
