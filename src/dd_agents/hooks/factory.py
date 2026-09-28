@@ -111,12 +111,14 @@ def _build_stop_hook(
             # 1. Coverage check — must have produced all subject JSONs
             result = check_coverage(output_dir, expected_subjects)
             if result["decision"] == "block":
-                return {"continue_": False, "stopReason": result["reason"]}
+                # Block stopping and feed the missing work back to the model.
+                # continue_=False would terminate the session instead.
+                return {"decision": "block", "reason": result["reason"]}
 
             # 2. Manifest check — coverage_manifest.json must exist
             result = check_manifest(output_dir, expected_subjects)
             if result["decision"] == "block":
-                return {"continue_": False, "stopReason": result["reason"]}
+                return {"decision": "block", "reason": result["reason"]}
 
             # Note: audit log is written by the orchestrator AFTER the agent
             # session completes (_write_audit_log in engine.py), so checking
@@ -165,17 +167,20 @@ def build_hooks_for_agent(
         logger.debug("claude_agent_sdk not installed — hooks unavailable")
         return None
 
-    return {
+    hooks = {
         "PreToolUse": [
             _HookMatcher(
                 hooks=[_build_pre_tool_hook(agent_name, run_dir, project_dir)],
                 timeout=5.0,
             ),
         ],
-        "Stop": [
+    }
+    # Read-only synthesis sessions return JSON in the SDK text stream.
+    if expected_subjects > 0:
+        hooks["Stop"] = [
             _HookMatcher(
                 hooks=[_build_stop_hook(agent_name, run_dir, expected_subjects)],
                 timeout=10.0,
             ),
-        ],
-    }
+        ]
+    return hooks

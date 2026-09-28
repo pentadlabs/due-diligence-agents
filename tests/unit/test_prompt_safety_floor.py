@@ -47,6 +47,34 @@ def test_critical_constraints_embeds_json_constraint() -> None:
     assert "sub-agents" in CRITICAL_CONSTRAINTS
 
 
+def test_file_output_floor_keeps_safety_rules_without_requesting_findings_in_reply() -> None:
+    from dd_agents.agents.prompt_constants import JSON_OUTPUT_CONSTRAINT
+
+    floor = assemble_safety_floor("legal", writes_findings=True)
+
+    assert "Write tool" in floor
+    assert "specified output path" in floor
+    assert "does not create a file" in floor
+    assert JSON_OUTPUT_CONSTRAINT not in floor
+    assert NO_FABRICATION in floor
+    assert UNTRUSTED_DOCUMENT_RULE in floor
+    assert "MANDATORY Citation Requirements" in floor
+    assert "sub-agents" in floor
+    assert JSON_OUTPUT_CONSTRAINT in assemble_safety_floor("executive_synthesis")
+
+
+def test_specialist_prompt_and_provenance_use_file_output_floor(tmp_path) -> None:
+    from dd_agents.agents.introspection import describe_agent
+    from dd_agents.agents.prompt_builder import PromptBuilder
+
+    builder = PromptBuilder(project_dir=tmp_path, run_dir=tmp_path, run_id="test")
+    prompt = builder.build_specialist_prompt("legal", ["Subject A"])
+    assert "does not create a file" in prompt
+    assert "does not create a file" in describe_agent("legal")
+    texts = AgentRegistry.collect_persona_texts(active=["legal"])
+    assert "does not create a file" in texts["_SAFETY_FLOOR::legal"]
+
+
 def test_wrap_untrusted_delimits_content() -> None:
     wrapped = wrap_untrusted("Acme is the customer.")
     assert wrapped.startswith(UNTRUSTED_OPEN)

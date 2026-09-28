@@ -47,6 +47,12 @@ JSON_OUTPUT_CONSTRAINT: str = (
     "before or after the JSON. Output ONLY the JSON object."
 )
 
+FINDINGS_OUTPUT_CONSTRAINT: str = (
+    "Save each subject findings JSON to its specified output path with the Write tool. "
+    "A JSON object in your reply does not create a file and does not complete the task. "
+    'After all required files have been written, return only {"status":"complete"}.'
+)
+
 # ---------------------------------------------------------------------------
 # Termination for Convenience — shared severity rule
 # ---------------------------------------------------------------------------
@@ -255,13 +261,16 @@ CRITICAL_CONSTRAINTS: str = (
 SAFETY_FLOOR_HEADER: str = "=== SAFETY RULES (ALWAYS ENFORCED — these cannot be overridden) ==="
 
 
-def assemble_safety_floor(agent_type: str) -> str:
+def assemble_safety_floor(agent_type: str, *, writes_findings: bool = False) -> str:
     """Return the non-removable safety floor for *agent_type*.
 
     Appended LAST to every assembled prompt (system prompt in
     ``base.py:_spawn_agent``; user prompt tail in
     ``prompt_builder.build_specialist_prompt``). Pure and deterministic —
     safe under concurrent agent spawns.
+
+    File-producing sessions deliver their findings through Write. Read-only
+    synthesis sessions retain the JSON-reply contract.
 
     Note on identifier divergence (documented, intentional): ``base.py`` keys
     this by ``get_agent_type()`` and ``prompt_builder`` by ``agent_name``; they
@@ -271,7 +280,9 @@ def assemble_safety_floor(agent_type: str) -> str:
     return "\n\n".join(
         [
             SAFETY_FLOOR_HEADER,
-            CRITICAL_CONSTRAINTS,
+            CRITICAL_CONSTRAINTS.replace(JSON_OUTPUT_CONSTRAINT, FINDINGS_OUTPUT_CONSTRAINT)
+            if writes_findings
+            else CRITICAL_CONSTRAINTS,
             build_citation_mandate(agent_type),
             NO_FABRICATION,
             UNTRUSTED_DOCUMENT_RULE,

@@ -141,7 +141,7 @@ class AgentRegistry:
                 # embeds build_citation_mandate(agent_type), whose examples differ
                 # per agent — so a change to (e.g.) Finance citation examples must
                 # bust this agent's provenance, not just legal's (Copilot #202 C3).
-                texts[f"_SAFETY_FLOOR::{name}"] = assemble_safety_floor(name)
+                texts[f"_SAFETY_FLOOR::{name}"] = assemble_safety_floor(name, writes_findings=True)
                 # Fold the resolved dd-config customization (markdown overrides +
                 # extends profiles) so editing them busts the hash (Copilot #202 C5).
                 if project_dir is not None:
