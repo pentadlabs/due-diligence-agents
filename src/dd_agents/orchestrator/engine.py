@@ -2054,6 +2054,9 @@ class PipelineEngine:
         # metrics so operators can track prompt effectiveness.
         self._validate_agent_output_structure(findings_dir, state.subject_safe_names)
 
+        # Retry sessions can finish after step 16 built the initial manifests.
+        self._backfill_coverage_manifests(state.run_dir, state.subject_safe_names)
+
         return state
 
     # ------------------------------------------------------------------
