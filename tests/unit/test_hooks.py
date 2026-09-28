@@ -782,8 +782,8 @@ class TestFindingSchemaGuard:
         result = finding_schema_guard(tn, ti, run_dir)
         assert result["decision"] == "allow"
 
-    def test_allows_malformed_json(self, tmp_path: Path) -> None:
-        """Malformed JSON should pass through (other guards handle it)."""
+    def test_blocks_malformed_json(self, tmp_path: Path) -> None:
+        """Malformed JSON must be rejected before the file is written."""
         run_dir = tmp_path / "run"
         (run_dir / "findings" / "legal").mkdir(parents=True)
         result = finding_schema_guard(
@@ -794,7 +794,7 @@ class TestFindingSchemaGuard:
             },
             run_dir,
         )
-        assert result["decision"] == "allow"
+        assert result["decision"] == "block"
 
     def test_multiple_findings_reports_all_violations(self, tmp_path: Path) -> None:
         run_dir = tmp_path / "run"
