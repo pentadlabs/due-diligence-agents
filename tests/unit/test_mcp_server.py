@@ -155,6 +155,22 @@ class TestBuildRuntimeContext:
         ctx = _build_runtime_context(project_dir, run_dir)
         assert ctx["files_list"] == ["a.pdf", "b.pdf"]
 
+    def test_reads_discovery_files_txt(self, tmp_path: Path) -> None:
+        """files_list comes from the files.txt inventory discovery writes.
+
+        Nothing writes master_inventory.csv, so without this every
+        verify_citation call fails with "not found in file inventory".
+        """
+        project_dir = tmp_path / "project"
+        run_dir = tmp_path / "run"
+        inventory_dir = project_dir / "_dd" / "forensic-dd" / "inventory"
+        inventory_dir.mkdir(parents=True)
+        run_dir.mkdir()
+        (inventory_dir / "files.txt").write_text("Northwind/arr.xlsx\nNorthwind/msa.pdf\n")
+
+        ctx = _build_runtime_context(project_dir, run_dir)
+        assert ctx["files_list"] == ["Northwind/arr.xlsx", "Northwind/msa.pdf"]
+
     def test_empty_inventory_csv(self, tmp_path: Path) -> None:
         """Empty CSV should result in None files_list."""
         project_dir = tmp_path / "project"

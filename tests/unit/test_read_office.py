@@ -509,6 +509,30 @@ class TestPathSecurity:
         assert result["status"] == "error"
         assert "traversal" in result["reason"].lower() or "outside" in result["reason"].lower()
 
+    def test_relative_path_resolves_against_data_room(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Agents cite files relative to the data room root, and the MCP server
+        runs in a process whose cwd is elsewhere."""
+        openpyxl = pytest.importorskip("openpyxl")
+        room = tmp_path / "room"
+        (room / "Northwind").mkdir(parents=True)
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        assert ws is not None
+        ws.append(["ARR", 41200000])
+        wb.save(room / "Northwind" / "arr.xlsx")
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        monkeypatch.chdir(elsewhere)
+
+        from dd_agents.tools.read_office import read_office
+
+        result = read_office("Northwind/arr.xlsx", allowed_dir=str(room), data_room_path=str(room))
+        assert result["status"] == "ok"
+        assert "ARR" in result["content"]
+        escape = read_office("../elsewhere/x.xlsx", allowed_dir=str(room), data_room_path=str(room))
+        assert escape["status"] == "error"
+        assert "traversal" in escape["reason"].lower()
+
     def test_no_allowed_dir_permits_any_path(self, tmp_path: Path) -> None:
         """Without allowed_dir, any accessible path is permitted."""
         openpyxl = pytest.importorskip("openpyxl")
