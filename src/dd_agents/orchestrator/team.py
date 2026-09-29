@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from dd_agents.agents.registry import AgentRegistry
+from dd_agents.models.finding import file_header_path
 from dd_agents.utils.constants import (
     AGENT_JUDGE,
     COVERAGE_MANIFEST_JSON,
@@ -792,7 +793,7 @@ class AgentTeam:
 
             subj_files: list[str] = []
             for fh in sdata.get("file_headers", []):
-                fp = fh.get("file_path", "") if isinstance(fh, dict) else ""
+                fp = file_header_path(fh)
                 if fp and fp not in seen_paths:
                     seen_paths.add(fp)
                     files_read.append({"path": fp, "extraction_quality": "primary"})

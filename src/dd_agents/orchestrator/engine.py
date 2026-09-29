@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from dd_agents.models.finding import file_header_path
 from dd_agents.orchestrator.checkpoints import (
     clean_checkpoints,
     load_checkpoint_by_step,
@@ -533,7 +534,7 @@ class PipelineEngine:
 
                 subj_files: list[str] = []
                 for fh in sdata.get("file_headers", []):
-                    fp = fh.get("file_path", "") if isinstance(fh, dict) else ""
+                    fp = file_header_path(fh)
                     if fp and fp not in seen_paths:
                         seen_paths.add(fp)
                         files_read.append({"path": fp, "extraction_quality": "primary"})

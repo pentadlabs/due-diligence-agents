@@ -266,6 +266,39 @@ class TestBackfillCoverageManifests:
         updated = json.loads((agent_dir / "coverage_manifest.json").read_text())
         assert len(updated["files_read"]) == 1
 
+    def test_backfill_reads_path_string_file_headers(self, tmp_path: Path) -> None:
+        """Agents often write file_headers as bare path strings; those files count as read."""
+        run_dir = tmp_path / "run"
+        agent_dir = run_dir / "findings" / "legal"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "subject_a.json").write_text(json.dumps({"file_headers": ["A/msa.pdf.md", "A/sow.pdf.md"]}))
+        (agent_dir / "reference.json").write_text(
+            json.dumps({"file_headers": ["_reference/overview.pdf.md", {"file_path": "A/msa.pdf.md"}]})
+        )
+
+        PipelineEngine._backfill_coverage_manifests(run_dir, ["subject_a", "reference"])
+
+        updated = json.loads((agent_dir / "coverage_manifest.json").read_text())
+        assert [f["path"] for f in updated["files_read"]] == [
+            "A/msa.pdf.md",
+            "A/sow.pdf.md",
+            "_reference/overview.pdf.md",
+        ]
+        assert updated["subjects"][1]["files_processed"] == ["_reference/overview.pdf.md"]
+
+    def test_incremental_manifest_reads_path_string_file_headers(self, tmp_path: Path) -> None:
+        """The output monitor's manifest counts bare path strings too."""
+        from dd_agents.orchestrator.team import AgentTeam
+
+        agent_dir = tmp_path / "legal"
+        agent_dir.mkdir()
+        (agent_dir / "subject_a.json").write_text(json.dumps({"file_headers": ["A/msa.pdf.md"]}))
+
+        AgentTeam._update_incremental_manifest(agent_dir)
+
+        updated = json.loads((agent_dir / "coverage_manifest.json").read_text())
+        assert [f["path"] for f in updated["files_read"]] == ["A/msa.pdf.md"]
+
 
 # ---------------------------------------------------------------------------
 # Batch scheduler integration in step 14
