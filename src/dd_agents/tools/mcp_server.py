@@ -847,6 +847,13 @@ def _build_runtime_context(
                         files_list.append(fp)
         except (OSError, csv.Error):
             logger.warning("Could not read inventory CSV at %s", inventory_csv)
+    # The inventory discovery writes: one data-room-relative path per line.
+    files_txt = dd_dir / "inventory" / "files.txt"
+    if not files_list and files_txt.exists():
+        try:
+            files_list = [line for line in files_txt.read_text(encoding="utf-8").splitlines() if line]
+        except OSError:
+            logger.warning("Could not read inventory at %s", files_txt)
 
     return {
         "text_dir": text_dir if text_dir.is_dir() else None,

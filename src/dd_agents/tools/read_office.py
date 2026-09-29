@@ -61,6 +61,10 @@ def read_office(
         ``{"status": "error", "reason": "..."}`` on failure.
     """
     path = Path(file_path)
+    # Agents cite files relative to the data room root; the MCP server's cwd
+    # is not the data room.
+    if data_room_path and not path.is_absolute():
+        path = Path(data_room_path) / path
 
     # Path containment check — prevent agents from reading outside data room.
     # When called internally (extraction pipeline), allowed_dir is None — no check.
