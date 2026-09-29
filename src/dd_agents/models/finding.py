@@ -343,6 +343,20 @@ class CrossReferenceData(BaseModel):
     discount_pct: str | None = Field(default=None, description="Discount percentage if applicable")
 
 
+def file_header_path(entry: object) -> str:
+    """Return the file path of a subject JSON ``file_headers`` entry.
+
+    Agents write either a full :class:`FileHeader` object or a bare path
+    string; both record that the file was read.
+    """
+    if isinstance(entry, str):
+        return entry
+    if isinstance(entry, dict):
+        path = entry.get("file_path", "")
+        return path if isinstance(path, str) else ""
+    return ""
+
+
 class FileHeader(BaseModel):
     """
     Per-file extraction header. From domain-definitions.md section 1.
