@@ -211,3 +211,28 @@ class TestSpawnSpecialistsSubset:
         team = AgentTeam(state)
         with pytest.raises(ValueError, match="empty"):
             await team.spawn_specialists(agents=[])
+
+    @pytest.mark.asyncio
+    async def test_configured_specialist_concurrency_serializes_agents(self, tmp_path: Path) -> None:
+        state = _make_state(tmp_path)
+        state.deal_config = {"execution": {"specialist_concurrency": 1}}
+        team = AgentTeam(state)
+        events: list[tuple[str, str]] = []
+
+        async def run_specialist(name: str, _config: dict[str, Any]) -> dict[str, Any]:
+            events.append(("start", name))
+            await asyncio.sleep(0)
+            events.append(("end", name))
+            return {"agent": name, "status": "completed"}
+
+        team._run_specialist = run_specialist  # type: ignore[method-assign]
+        results = await team.spawn_specialists(agents=["producttech", "hr"])
+
+        assert results["producttech"]["status"] == "completed"
+        assert results["hr"]["status"] == "completed"
+        assert events == [
+            ("start", "producttech"),
+            ("end", "producttech"),
+            ("start", "hr"),
+            ("end", "hr"),
+        ]

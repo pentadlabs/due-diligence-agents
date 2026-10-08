@@ -206,6 +206,15 @@ class ExecutionConfig(BaseModel):
         "Each batch is an independent SDK session processing different "
         "subjects, so parallelism is safe. Default 6.",
     )
+    specialist_concurrency: int = Field(
+        default=9,
+        ge=1,
+        le=9,
+        description=(
+            "Max specialist agents running at once in pipeline step 16. "
+            "Use 1 when external call order must be replay-stable."
+        ),
+    )
 
 
 class VerdictRubricConfig(BaseModel):

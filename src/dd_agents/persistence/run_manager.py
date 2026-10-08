@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,6 +24,25 @@ from dd_agents.persistence.tiers import TierManager
 from dd_agents.utils.constants import DD_DIR, SKILL_DIR
 
 logger = logging.getLogger(__name__)
+
+
+def _validated_demo_replay_identity(value: object) -> tuple[str, str]:
+    """Validate the explicit identity used by deterministic demo fixtures."""
+    if not isinstance(value, dict):
+        raise ValueError("execution.demo_replay_identity must be an object")
+    run_id = value.get("run_id")
+    timestamp = value.get("timestamp")
+    if not isinstance(run_id, str) or not re.fullmatch(r"run_[0-9]{8}_[0-9]{6}_[0-9a-f]{6}", run_id):
+        raise ValueError("execution.demo_replay_identity.run_id has an invalid format")
+    if not isinstance(timestamp, str):
+        raise ValueError("execution.demo_replay_identity.timestamp must be an ISO-8601 string")
+    try:
+        parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("execution.demo_replay_identity.timestamp must be ISO-8601") from exc
+    if parsed.tzinfo is None:
+        raise ValueError("execution.demo_replay_identity.timestamp must include a timezone")
+    return run_id, timestamp
 
 
 def _atomic_write_text(path: Path, content: str) -> None:
@@ -137,9 +157,35 @@ class RunManager:
         self.project_dir = Path(project_dir)
         self.tier_mgr = TierManager(self.project_dir)
 
-        # 1. Generate run_id from current UTC time with microseconds and a
-        #    random suffix to avoid collisions.  Issue #63.
-        run_id = f"run_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+        # 1. Normal runs use a unique wall-clock identity (Issue #63). A
+        #    content-addressed replay fixture may pin this identity so that a
+        #    fresh guest reproduces the same persisted request bytes.
+        demo_replay_identity = (deal_config or {}).get("execution", {}).get("demo_replay_identity")
+        if demo_replay_identity is None:
+            # The launcher runs the CLI in a child process and custom data
+            # rooms may cause the effective config dict to omit runner-only
+            # fields. The adjacent config file remains the authoritative
+            # source for this explicit replay setting.
+            config_path = Path(project_dir).parent / "deal-config.json"
+            try:
+                on_disk_config = json.loads(config_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                on_disk_config = {}
+            demo_replay_identity = (
+                on_disk_config.get("execution", {}).get("demo_replay_identity")
+                if isinstance(on_disk_config, dict)
+                else None
+            )
+        if demo_replay_identity is None:
+            env_run_id = os.environ.get("DD_DEMO_REPLAY_RUN_ID")
+            env_timestamp = os.environ.get("DD_DEMO_REPLAY_TIMESTAMP")
+            if env_run_id is not None or env_timestamp is not None:
+                demo_replay_identity = {"run_id": env_run_id, "timestamp": env_timestamp}
+        if demo_replay_identity is None:
+            run_id = f"run_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+            run_timestamp = datetime.now(UTC).isoformat()
+        else:
+            run_id, run_timestamp = _validated_demo_replay_identity(demo_replay_identity)
 
         # 2. Ensure PERMANENT dirs exist
         self.tier_mgr.ensure_permanent_dirs()
@@ -183,7 +229,7 @@ class RunManager:
 
         metadata = RunMetadata(
             run_id=run_id,
-            timestamp=datetime.now(UTC).isoformat(),
+            timestamp=run_timestamp,
             skill="forensic-dd",
             execution_mode=exec_mode,
             config_hash=config_hash,

@@ -80,8 +80,14 @@
   },
   "execution": {
     "execution_mode": "full",
+    "batch_concurrency": 1,
+    "specialist_concurrency": 1,
     "staleness_threshold": 3,
-    "force_full_on_config_change": true
+    "force_full_on_config_change": true,
+    "demo_replay_identity": {
+      "run_id": "run_20261008_000000_674600",
+      "timestamp": "2026-10-08T00:00:00+00:00"
+    }
   },
   "reporting": {
     "report_schema_override": null,

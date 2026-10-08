@@ -148,9 +148,8 @@ class AgentTeam:
 
         agent_names = agents if agents is not None else AgentRegistry.all_specialist_names()
 
-        # Adaptive timeout (Issue #42).  Account for batch count and
-        # concurrency: with parallel batches, effective sequential waves
-        # = ceil(batches / concurrency).
+        # Adaptive timeout (Issue #42). Account for both specialist waves
+        # and parallel batches within each specialist.
         max_batches = 1
         for agent_name in agent_names:
             n = len(self.state.agent_prompts.get(agent_name, []))
@@ -163,8 +162,16 @@ class AgentTeam:
             if isinstance(_dc, dict)
             else getattr(getattr(_dc, "execution", None), "batch_concurrency", 6)
         )
-        # Effective sequential waves = ceil(batches / concurrency)
-        effective_waves = max(1, -(-max_batches // max(1, batch_concurrency)))
+        specialist_concurrency = (
+            _dc.get("execution", {}).get("specialist_concurrency", 9)
+            if isinstance(_dc, dict)
+            else getattr(getattr(_dc, "execution", None), "specialist_concurrency", 9)
+        )
+        specialist_waves = max(
+            1, -(-len(agent_names) // max(1, specialist_concurrency))
+        )
+        batch_waves = max(1, -(-max_batches // max(1, batch_concurrency)))
+        effective_waves = specialist_waves * batch_waves
 
         timeout = (
             self.calculate_adaptive_timeout(num_subjects, num_batches=effective_waves)
@@ -181,15 +188,28 @@ class AgentTeam:
             num_subjects > 0,
         )
 
+        specialist_lock = asyncio.Lock()
+        specialist_semaphore = asyncio.Semaphore(max(1, specialist_concurrency))
+
+        async def _invoke_specialist(agent_name: str, cfg: dict[str, Any]) -> dict[str, Any]:
+            self._agent_start_times[agent_name] = time.monotonic()
+            self._agent_last_activity[agent_name] = time.monotonic()
+            return await self._run_specialist(agent_name, cfg)
+
+        async def _run_limited(agent_name: str, cfg: dict[str, Any]) -> dict[str, Any]:
+            if specialist_concurrency == 1:
+                async with specialist_lock:
+                    return await _invoke_specialist(agent_name, cfg)
+            async with specialist_semaphore:
+                return await _invoke_specialist(agent_name, cfg)
+
         for agent_name in agent_names:
             cfg = configs.get(agent_name, {})
             task = asyncio.create_task(
-                self._run_specialist(agent_name, cfg),
+                _run_limited(agent_name, cfg),
                 name=f"specialist-{agent_name}",
             )
             tasks[agent_name] = task
-            self._agent_start_times[agent_name] = time.monotonic()
-            self._agent_last_activity[agent_name] = time.monotonic()
 
         # Start filesystem monitor alongside agent tasks (Issue #42).
         # The monitor also performs stall-based cancellation: if no new output

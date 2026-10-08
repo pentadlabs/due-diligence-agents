@@ -166,6 +166,62 @@ class TestRunManager:
         assert parts[2].isdigit() and len(parts[2]) == 6  # HHMMSS
         assert len(parts[3]) == 6  # hex suffix
 
+    def test_initialize_replays_explicit_demo_identity(self, tmp_path: Path) -> None:
+        """A replay fixture keeps guest-authored identity bytes stable."""
+        config = {
+            "execution": {
+                "demo_replay_identity": {
+                    "run_id": "run_20261008_000000_674600",
+                    "timestamp": "2026-10-08T00:00:00+00:00",
+                }
+            }
+        }
+        first_dir = tmp_path / "first"
+        second_dir = tmp_path / "second"
+        first = RunManager(first_dir).initialize_run(first_dir, config)
+        second = RunManager(second_dir).initialize_run(second_dir, config)
+
+        assert first.run_id == second.run_id
+        assert first.timestamp == second.timestamp
+        assert first.timestamp == config["execution"]["demo_replay_identity"]["timestamp"]
+
+    def test_initialize_rejects_unsafe_demo_run_id(self, tmp_path: Path) -> None:
+        """A configured replay identity cannot escape the runs directory."""
+        config = {
+            "execution": {
+                "demo_replay_identity": {
+                    "run_id": "../../outside",
+                    "timestamp": "2026-10-08T00:00:00+00:00",
+                }
+            }
+        }
+
+        with pytest.raises(ValueError, match="run_id has an invalid format"):
+            RunManager(tmp_path).initialize_run(tmp_path, config)
+
+    def test_initialize_reads_explicit_demo_identity_from_adjacent_config(self, tmp_path: Path) -> None:
+        project_dir = tmp_path / "sample_data_room"
+        project_dir.mkdir()
+        config_path = tmp_path / "deal-config.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "execution": {
+                        "demo_replay_identity": {
+                            "run_id": "run_20261008_000000_674600",
+                            "timestamp": "2026-10-08T00:00:00+00:00",
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        metadata = RunManager(project_dir).initialize_run(project_dir, {})
+
+        assert metadata.run_id == "run_20261008_000000_674600"
+        assert metadata.timestamp == "2026-10-08T00:00:00+00:00"
+
     def test_initialize_creates_directory_structure(self, tmp_path: Path) -> None:
         """initialize_run should create the full VERSIONED directory tree."""
         mgr = RunManager(tmp_path)
